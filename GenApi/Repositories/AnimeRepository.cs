@@ -1,34 +1,41 @@
+
 using GenApi.Dtos;
 using GenApi.Models;
 
 namespace GenApi.Repositories;
 
-public class AnimeRepository
+public class AnimeRepository : IAnimeRepository
 {
-    public Anime GetAnimeById(string id)
-    {
-        if (id == "1")
-            throw new NotFoundException($"Anime id {id} không tồn tại");
+    private readonly AppDbContext _db;
 
-        return new Anime
-        {
-            Id = id,
-            Name = "Test Anime",
-            Description = "Desc của test anime",
-            Episodes = 5,
-            IsRelease = false,
-        };
+    public AnimeRepository(AppDbContext db)
+    {
+        _db = db;
+    }
+    public Anime? GetAnimeById(string id)
+    {
+        return _db.Anime.Where(p => p.Id == id).FirstOrDefault();
     }
 
     public Anime? CreateAnime(CreateAnimeDto entity)
     {
-        return new Anime
+        var newAnime = new Anime
         {
             Id = Guid.NewGuid().ToString(),
             Name = entity.Name,
             Description = entity.Description,
             Episodes = entity.Episodes ?? 0,
             IsRelease = entity.IsRelease,
+            // ReleaseDate = entity.ReleaseDate ?? DateTime.Now,
+            ReleaseDate = DateTime.SpecifyKind(entity.ReleaseDate ?? DateTime.Now, DateTimeKind.Utc),
         };
+        _db.Anime.Add(newAnime);
+        _db.SaveChanges();
+        return newAnime;
+    }
+
+    public List<Anime>? GetAnime(string name)
+    {
+        return _db.Anime.Where(p => p.Name.Contains(name)).ToList();
     }
 }

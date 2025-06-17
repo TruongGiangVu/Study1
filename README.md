@@ -7,6 +7,9 @@
 - opensearch-data: folder chứa dữ liệu store data của opensearch
   - cấu hình đường dẫn này nằm ở trong file docker-compose.yml
   - được tạo sau khi chạy host opensearch
+- postgres-data: folder chứa dữ liệu store data của postgreSql
+  - cấu hình đường dẫn này nằm ở trong file docker-compose.yml
+  - được tạo sau khi chạy host postgres
 
 ## Docker
 ```

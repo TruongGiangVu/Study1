@@ -8,6 +8,8 @@ using GenApi.Services.RabbitMQ;
 
 using MassTransit;
 
+using Microsoft.EntityFrameworkCore;
+
 using Scalar.AspNetCore;
 
 using Serilog.Sinks.OpenSearch;
@@ -40,7 +42,7 @@ Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(configuration)
     .Enrich.FromLogContext()
     .Enrich.WithComputed("SourceContext", "Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1)") // chỗ placeholder SourceContext sẽ log tên class mà ko log namespace của log
-    // config log vào opensearch
+                                                                                                           // config log vào opensearch
     .WriteTo.OpenSearch(new OpenSearchSinkOptions(new Uri(appSettings?.OpenSearch?.NodeUris ?? string.Empty))
     {
         ModifyConnectionSettings = x => x.BasicAuthentication(appSettings?.OpenSearch?.UserName ?? string.Empty, appSettings?.OpenSearch?.Password ?? string.Empty)
@@ -70,6 +72,10 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer<BearerSecurityTransformer>();
 });
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(appSettings?.ConnectionStrings));
+
+
 builder.Services.AddMassTransit(x =>
 {
     // Đăng ký 1 consumer giống Services.AddScoped<SubmitAnimeConsumer>();
@@ -78,22 +84,22 @@ builder.Services.AddMassTransit(x =>
     // Configure RabbitMQ as the transport
     x.UsingRabbitMq((context, cfg) =>
     {
-        cfg.Host("localhost",5673, "/", h =>
+        cfg.Host(appSettings?.RabbitMQ?.Host, (ushort)(appSettings?.RabbitMQ?.Port ?? 0), "/", h =>
         {
-            h.Username("guest");
-            h.Password("guest");
+            h.Username(appSettings?.RabbitMQ?.UserName ?? string.Empty);
+            h.Password(appSettings?.RabbitMQ?.Password ?? string.Empty);
         });
 
         // Configure the receive endpoint (queue)
         // Config nhận message từ queue anime-queue và inject Service SubmitAnimeConsumer để nhận
-        cfg.ReceiveEndpoint("anime-queue", e =>
+        cfg.ReceiveEndpoint(appSettings?.RabbitMQ?.QueueName ?? string.Empty, e =>
         {
             e.ConfigureConsumer<SubmitAnimeConsumer>(context);
         });
     });
 });
 
-builder.Services.AddScoped<AnimeRepository>();
+builder.Services.AddScoped<IAnimeRepository, AnimeRepository>();
 builder.Services.AddScoped<AnimeService>();
 
 var app = builder.Build();

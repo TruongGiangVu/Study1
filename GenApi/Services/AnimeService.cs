@@ -8,9 +8,9 @@ namespace GenApi.Services;
 
 public class AnimeService
 {
-    private readonly AnimeRepository _repository;
+    private readonly IAnimeRepository _repository;
 
-    public AnimeService(AnimeRepository repository)
+    public AnimeService(IAnimeRepository repository)
     {
         _repository = repository;
     }
@@ -31,13 +31,13 @@ public class AnimeService
             throw new RequiredException($"Anime thông tin không bị null");
 
         CreateAnimeValidator validator = new();
-        ValidationResult validationResult= validator.Validate(dto);
+        ValidationResult validationResult = validator.Validate(dto);
         if (!validationResult.IsValid)
             throw new ValidationException(details: validationResult.Errors.Select(x => x.ErrorMessage).ToList());
 
         Anime? data = _repository.CreateAnime(dto);
 
-        if(data is null)
+        if (data is null)
             throw new DatabaseException($"Tạo Anime bị lỗi");
 
         return ResponseDto<Anime>.Success(data);
