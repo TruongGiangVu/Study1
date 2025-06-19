@@ -20,7 +20,7 @@ services:
       - 9200:9200 # REST API
       - 9600:9600 # Performance Analyzer
     networks:
-      - opensearch-net # All of the containers will join the same Docker bridge network
+      - study1-net # All of the containers will join the same Docker bridge network
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
@@ -32,7 +32,7 @@ services:
     environment:
       OPENSEARCH_HOSTS: '["https://opensearch:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
     networks:
-      - opensearch-net
+      - study1-net
   rabbitmq:
     image: rabbitmq:3-management
     ports:
@@ -41,6 +41,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - study1-net
   postgres:
     image: postgres:15
     container_name: my_postgres
@@ -49,13 +51,32 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: mydb
+    networks:
+      - study1-net
     ports:
       - "5432:5432"
     volumes:
       - D:\Study\Microservice\Study1\postgres-data:/var/lib/postgresql/data
+  webapi:
+    image: my-gen-api
+    container_name: dotnet-genwebapi
+    ports:
+      - "5085:80"
+    volumes:
+    -  D:\Study\Microservice\Study1\dotnet-genapi-data\logs:/app/logs
+    depends_on:
+      - opensearch
+      - rabbitmq
+      - postgres
+    networks:
+      - study1-net
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
 
 volumes:
   opensearch-data:
 
 networks:
-  opensearch-net:
+  study1-net:
+    driver: bridge

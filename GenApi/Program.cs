@@ -120,7 +120,7 @@ app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference("/scalar", options =>
@@ -136,10 +136,10 @@ if (app.Environment.IsDevelopment())
         return Task.CompletedTask;
     });
 }
-else
-{
-    app.MapGet("/", () => $"${Ct.Common.AppName} is running");
-}
+// else
+// {
+//     app.MapGet("/", () => $"${Ct.Common.AppName} is running");
+// }
 
 app.UseHttpsRedirection();
 
