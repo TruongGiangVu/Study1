@@ -7,6 +7,8 @@ using MassTransit;
 
 using Microsoft.AspNetCore.Mvc;
 
+using OpenSearch.Client;
+
 namespace GenApi.Controllers;
 
 [ApiController]
@@ -17,13 +19,22 @@ public class AnimeController : ControllerBase
     private readonly AnimeService _service;
     private readonly IAnimeRepository _repository;
     private readonly IPublishEndpoint _publishEndpoint;
+    private readonly IOpenSearchClient _openSearchClient;
+    private readonly ISendEndpointProvider _sendEndpointProvider;
 
-    public AnimeController(ILogger<AnimeController> logger, AnimeService service, IAnimeRepository repository, IPublishEndpoint publishEndpoint)
+    public AnimeController(ILogger<AnimeController> logger,
+                AnimeService service,
+                IAnimeRepository repository,
+                IPublishEndpoint publishEndpoint,
+                IOpenSearchClient openSearchClient,
+                ISendEndpointProvider sendEndpointProvider)
     {
         _logger = logger;
         _service = service;
         _repository = repository;
         _publishEndpoint = publishEndpoint;
+        _openSearchClient = openSearchClient;
+        _sendEndpointProvider = sendEndpointProvider;
     }
 
     [HttpGet("{id}")]
@@ -51,17 +62,54 @@ public class AnimeController : ControllerBase
 
     [HttpPost]
     [ProducesResponseType(typeof(ResponseDto<Anime>), StatusCodes.Status200OK)]
-    public IActionResult CreateAnime(CreateAnimeDto? input)
+    public async Task<IActionResult> CreateAnime(CreateAnimeDto? input)
     {
         _logger.LogInformation("{method} input={input}", nameof(CreateAnime), input.ToJsonString());
 
         ResponseDto<Anime> response = _service.CreateAnime(input);
 
-        // nếu Create thành công, đẩy vào rabbit MQ
+
         if (response.Payload is not null)
-            _publishEndpoint.Publish(response.Payload);
+        {
+            // nếu Create thành công, đẩy vào rabbit MQ theo kiểu fanout
+            await _publishEndpoint.Publish(response.Payload);
+
+            // đẩy tới 1 queue name cụ thể
+            var endpoint = await _sendEndpointProvider.GetSendEndpoint(new Uri("queue:anime-queue"));
+            await endpoint.Send(response.Payload);
+
+            IndexResponse opensSearchResponse = await _openSearchClient.IndexDocumentAsync(response.Payload);
+            _logger.LogInformation("{method} OpenSearch isValid={isValid} id={id}", nameof(CreateAnime), opensSearchResponse.IsValid, opensSearchResponse.Id);
+        }
+
 
         _logger.LogInformation("{method} response: {response}", nameof(CreateAnime), response.ToJsonString());
         return Ok(response);
+    }
+
+    [HttpGet("open-search/{id}")]
+    public async Task<IActionResult> GetOpenSearchAnimeById(string id)
+    {
+        var response = await _openSearchClient.GetAsync<Anime>(id);
+
+        if (!response.Found)
+            return NotFound();
+
+        return Ok(response.Source);
+    }
+
+    [HttpGet("open-search")]
+    public async Task<IActionResult> SearchOpenSearch(string name)
+    {
+        var searchResponse = await _openSearchClient.SearchAsync<Anime>(s => s
+            .Query(q => q
+                .Match(m => m
+                    .Field(f => f.Name)
+                    .Query(query: name)
+                )
+            )
+        );
+
+        return Ok(searchResponse.Documents);
     }
 }

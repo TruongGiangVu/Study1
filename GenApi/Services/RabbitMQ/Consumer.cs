@@ -9,7 +9,7 @@ namespace GenApi.Services.RabbitMQ
         public Task Consume(ConsumeContext<Anime> context)
         {
             Anime message = context.Message;
-            Log.Information($"[✔] Anime Received: {message.ToJsonString()}");
+            Log.Information($"[✔] Anime Received ({DateTime.Now}): {message.ToJsonString()}");
             return Task.CompletedTask;
         }
     }

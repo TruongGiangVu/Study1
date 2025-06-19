@@ -10,6 +10,7 @@ public class AppSettings
 public class OpenSearchSettings
 {
     public string NodeUris { get; set; } = string.Empty;
+    public string AnimeIndex { get; set; } = string.Empty;
     public string UserName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
 }

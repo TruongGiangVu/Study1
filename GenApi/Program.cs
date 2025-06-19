@@ -10,6 +10,8 @@ using MassTransit;
 
 using Microsoft.EntityFrameworkCore;
 
+using OpenSearch.Client;
+
 using Scalar.AspNetCore;
 
 using Serilog.Sinks.OpenSearch;
@@ -98,6 +100,15 @@ builder.Services.AddMassTransit(x =>
         });
     });
 });
+
+// * open search
+var settings = new ConnectionSettings(new Uri(appSettings?.OpenSearch?.NodeUris ?? string.Empty)) // use container name as hostname!
+    .BasicAuthentication(appSettings?.OpenSearch?.UserName ?? string.Empty, appSettings?.OpenSearch?.Password ?? string.Empty)                         // default demo user + your password
+    .ServerCertificateValidationCallback(OpenSearch.Net.CertificateValidations.AllowAll) // for self-signed certs
+    .DefaultIndex(appSettings?.OpenSearch?.AnimeIndex);                                            // optional default index
+    // .DefaultMappingFor<Anime>(m => m.IndexName(appSettings?.OpenSearch?.AnimeIndex));                                            // optional default index
+OpenSearchClient openSearchClient = new(settings);
+builder.Services.AddSingleton<IOpenSearchClient>(openSearchClient);
 
 builder.Services.AddScoped<IAnimeRepository, AnimeRepository>();
 builder.Services.AddScoped<AnimeService>();
